@@ -1,0 +1,291 @@
+// TaskQuest - Gamified RPG Task Manager
+// Prisma Schema for SQLite (local development)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// CHARACTER SYSTEM
+// ============================================
+
+model Character {
+  id        String   @id @default(cuid())
+  userId    String   @unique // For future auth integration
+  name      String
+  title     String   @default("Novato Digital")
+  avatarUrl String?
+  
+  // Core Stats
+  level     Int      @default(1)
+  currentXP Int      @default(0)
+  totalXP   Int      @default(0)
+  
+  // Vitals
+  hp        Int      @default(100)
+  maxHp     Int      @default(100)
+  mana      Int      @default(50)
+  maxMana   Int      @default(50)
+  
+  // Currency
+  gold      Int      @default(0)
+  gems      Int      @default(0)
+  
+  // Streaks
+  currentStreak   Int      @default(0)
+  longestStreak   Int      @default(0)
+  lastActiveDate  DateTime @default(now())
+  
+  // Relations
+  attributes    Attribute[]
+  quests        Quest[]
+  achievements  CharacterAchievement[]
+  inventory     InventoryItem[]
+  dailyProgress DailyProgress[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("characters")
+}
+
+model Attribute {
+  id          String    @id @default(cuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  
+  name        String    // creativity, logic, focus, communication
+  displayName String
+  level       Int       @default(1)
+  currentXP   Int       @default(0)
+  color       String    // Hex color for UI
+  icon        String    // Lucide icon name
+  
+  @@unique([characterId, name])
+  @@map("attributes")
+}
+
+// ============================================
+// QUEST SYSTEM
+// ============================================
+
+model Quest {
+  id          String    @id @default(cuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  
+  title       String
+  description String?
+  type        String    @default("SIDE") // MAIN, SIDE, DAILY, WEEKLY, BOSS
+  difficulty  String    @default("NORMAL") // TRIVIAL, EASY, NORMAL, HARD, EPIC, LEGENDARY
+  status      String    @default("ACTIVE") // ACTIVE, COMPLETED, FAILED, ARCHIVED
+  
+  // Rewards
+  xpReward    Int       @default(50)
+  goldReward  Int       @default(10)
+  
+  // Billing
+  billingType    String    @default("FIXED") // FIXED or HOURLY
+  budgetAmount   Float?    // Monto fijo a cobrar
+  hourlyRate     Float?    // Tarifa por hora
+  estimatedHours Float?    // Horas estimadas a trabajar
+  hoursWorked    Float?    // Horas realmente trabajadas
+  isPaid         Boolean   @default(false) // Si ya se cobró
+  paidAt         DateTime? // Fecha de cobro
+  
+  // Boss Battle (for MAIN quests)
+  isBossBattle  Boolean   @default(false)
+  bossName      String?
+  bossHp        Int?
+  bossMaxHp     Int?
+  bossImageUrl  String?
+  
+  // Timing
+  deadline    DateTime?
+  completedAt DateTime?
+  
+  // Daily quest specific
+  isDaily     Boolean     @default(false)
+  dailyResetAt DateTime?
+  
+  // Relations
+  tasks       Task[]
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  @@map("quests")
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  questId     String
+  quest       Quest     @relation(fields: [questId], references: [id], onDelete: Cascade)
+  
+  title       String
+  description String?
+  completed   Boolean   @default(false)
+  
+  // Rewards (individual task rewards)
+  xpReward    Int       @default(10)
+  goldReward  Int       @default(5)
+  
+  // Attribute to boost on completion
+  attributeBoost String?  // 'creativity', 'logic', 'focus', 'communication'
+  attributeXP    Int      @default(5)
+  
+  // Ordering
+  order       Int       @default(0)
+  
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@map("tasks")
+}
+
+// ============================================
+// ACHIEVEMENT SYSTEM
+// ============================================
+
+model Achievement {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  icon        String   // Lucide icon name
+  rarity      String   @default("COMMON") // COMMON, RARE, EPIC, LEGENDARY
+  
+  // Unlock conditions (stored as JSON string)
+  condition   String   // JSON string: { type: 'quest_complete', value: 10 }
+  
+  // Rewards
+  xpReward    Int      @default(100)
+  goldReward  Int      @default(50)
+  titleReward String?  // Unlock a new title
+  
+  // Relations
+  characters  CharacterAchievement[]
+  
+  createdAt   DateTime @default(now())
+  
+  @@map("achievements")
+}
+
+model CharacterAchievement {
+  id            String      @id @default(cuid())
+  characterId   String
+  character     Character   @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  
+  unlockedAt    DateTime    @default(now())
+  
+  @@unique([characterId, achievementId])
+  @@map("character_achievements")
+}
+
+// ============================================
+// INVENTORY & SHOP
+// ============================================
+
+model Item {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String
+  icon        String    // Lucide icon name
+  rarity      String    @default("COMMON") // COMMON, RARE, EPIC, LEGENDARY
+  type        String    // CONSUMABLE, EQUIPMENT, COSMETIC, BOOST
+  
+  // Effects (stored as JSON string)
+  effects     String    // JSON string: { hp_restore: 50, mana_restore: 25 }
+  
+  // Shop
+  goldCost    Int       @default(100)
+  gemCost     Int       @default(0)
+  
+  // Relations
+  inventory   InventoryItem[]
+  
+  createdAt   DateTime  @default(now())
+  
+  @@map("items")
+}
+
+model InventoryItem {
+  id          String    @id @default(cuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  itemId      String
+  item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  
+  quantity    Int       @default(1)
+  
+  @@unique([characterId, itemId])
+  @@map("inventory_items")
+}
+
+// ============================================
+// DAILY TRACKING
+// ============================================
+
+model DailyProgress {
+  id          String    @id @default(cuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  
+  date        DateTime
+  
+  tasksCompleted  Int   @default(0)
+  questsCompleted Int   @default(0)
+  xpEarned        Int   @default(0)
+  goldEarned      Int   @default(0)
+  
+  // Deep work tracking (Pomodoros)
+  focusMinutes    Int   @default(0)
+  pomodorosCompleted Int @default(0)
+  
+  @@unique([characterId, date])
+  @@map("daily_progress")
+}
+
+// ============================================
+// REWARD SYSTEM
+// ============================================
+
+model Reward {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  icon        String    @default("gift") // Lucide icon name
+  goldCost    Int       @default(50)
+  category    String    @default("LEISURE") // LEISURE, HEALTH, SOCIAL, TREAT
+  isActive    Boolean   @default(true)
+  
+  // Limits
+  dailyLimit  Int?      // Max times per day (null = unlimited)
+  
+  // Relations
+  redemptions RewardRedemption[]
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@map("rewards")
+}
+
+model RewardRedemption {
+  id          String    @id @default(cuid())
+  rewardId    String
+  reward      Reward    @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+  characterId String
+  goldSpent   Int
+  
+  redeemedAt  DateTime  @default(now())
+  
+  @@map("reward_redemptions")
+}
