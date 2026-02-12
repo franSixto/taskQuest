@@ -1,12 +1,12 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { 
-  Sword, 
-  Target, 
-  Clock, 
-  Star, 
-  Coins, 
+import {
+  Sword,
+  Target,
+  Clock,
+  Star,
+  Coins,
   ChevronRight,
   Skull,
   Calendar,
@@ -60,20 +60,20 @@ export function QuestCard({ quest, onClick, className }: QuestCardProps) {
 
   // Check if quest has billing configured
   const isHourlyBilling = quest.billingType === 'HOURLY';
-  const hasBilling = isHourlyBilling 
+  const hasBilling = isHourlyBilling
     ? (quest.hourlyRate !== null && quest.hourlyRate !== undefined && quest.hourlyRate > 0)
     : (quest.budgetAmount !== null && quest.budgetAmount !== undefined && quest.budgetAmount > 0);
-  
+
   // Calculate billing amounts for hourly billing
-  const estimatedAmount = isHourlyBilling 
+  const estimatedAmount = isHourlyBilling
     ? ((quest.hourlyRate || 0) * (quest.estimatedHours || 0))
     : 0;
-  const workedAmount = isHourlyBilling 
+  const workedAmount = isHourlyBilling
     ? ((quest.hourlyRate || 0) * (quest.hoursWorked || 0))
     : 0;
-  
+
   // Primary billing amount (worked hours take priority, then estimated, then fixed)
-  const billingAmount = isHourlyBilling 
+  const billingAmount = isHourlyBilling
     ? (workedAmount > 0 ? workedAmount : estimatedAmount)
     : (quest.budgetAmount || 0);
 
@@ -124,8 +124,8 @@ export function QuestCard({ quest, onClick, className }: QuestCardProps) {
                 whileHover={{ rotate: 15 }}
                 className={cn(
                   'flex h-11 w-11 items-center justify-center rounded-xl border transition-colors',
-                  quest.isBossBattle 
-                    ? 'bg-error/20 border-error/40' 
+                  quest.isBossBattle
+                    ? 'bg-error/10 border-error/30'
                     : 'bg-primary/20 border-primary/40 group-hover:bg-primary/30'
                 )}
               >
@@ -149,7 +149,7 @@ export function QuestCard({ quest, onClick, className }: QuestCardProps) {
                 </div>
               </div>
             </div>
-            
+
             {/* Difficulty badge */}
             <span
               className={cn(
@@ -176,7 +176,7 @@ export function QuestCard({ quest, onClick, className }: QuestCardProps) {
             <ProgressBar
               value={completedTasks}
               max={totalTasks}
-              color={isComplete ? 'success' : quest.isBossBattle ? 'error' : 'primary'}
+              color={isComplete ? 'success' : 'primary'}
               size="sm"
               glow={isComplete}
             />
@@ -213,8 +213,8 @@ export function QuestCard({ quest, onClick, className }: QuestCardProps) {
           {hasBilling && (
             <div className={cn(
               "mb-3 flex items-center justify-between rounded-lg px-3 py-2 text-sm",
-              quest.isPaid 
-                ? "bg-success/10 border border-success/30" 
+              quest.isPaid
+                ? "bg-success/10 border border-success/30"
                 : "bg-emerald-500/10 border border-emerald-500/30"
             )}>
               <span className="flex items-center gap-2">

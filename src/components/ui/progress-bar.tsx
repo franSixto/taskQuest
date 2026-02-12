@@ -95,21 +95,34 @@ export function ProgressBar({
   );
 }
 
-// HP Bar with special styling
+// HP Status types
+type HPStatus = 'healthy' | 'tired' | 'exhausted' | 'critical';
+
+function getHPStatus(percentage: number): { status: HPStatus; label: string; description: string } {
+  if (percentage > 50) return { status: 'healthy', label: '', description: 'Tu vitalidad está bien' };
+  if (percentage > 25) return { status: 'tired', label: '😓 Cansado', description: 'Completa tareas para recuperarte' };
+  if (percentage > 0) return { status: 'exhausted', label: '😰 Agotado', description: '-25% XP ganada' };
+  return { status: 'critical', label: '💀 K.O.', description: 'Necesitas descansar' };
+}
+
+// HP Bar with special styling and status
 export function HPBar({
   current,
   max,
   className,
+  showStatus = true,
 }: {
   current: number;
   max: number;
   className?: string;
+  showStatus?: boolean;
 }) {
   const percentage = max > 0 ? (current / max) * 100 : 0;
   const color = percentage > 50 ? 'success' : percentage > 25 ? 'warning' : 'error';
+  const { status, label, description } = getHPStatus(percentage);
 
   return (
-    <div className={cn('relative', className)}>
+    <div className={cn('relative group', className)}>
       <ProgressBar
         value={current}
         max={max}
@@ -119,31 +132,91 @@ export function HPBar({
         label="❤️ HP"
         glow
       />
+      {/* Status badge */}
+      {showStatus && status !== 'healthy' && (
+        <motion.div
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={cn(
+            'absolute -top-1 -right-1 px-1.5 py-0.5 rounded text-[10px] font-bold',
+            status === 'tired' && 'bg-warning/30 text-warning border border-warning/50',
+            status === 'exhausted' && 'bg-error/30 text-error border border-error/50 animate-pulse',
+            status === 'critical' && 'bg-red-900/50 text-red-300 border border-red-500 animate-pulse'
+          )}
+        >
+          {label}
+        </motion.div>
+      )}
+      {/* Tooltip */}
+      {showStatus && status !== 'healthy' && (
+        <div className="absolute left-1/2 -translate-x-1/2 -bottom-8 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+          <div className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-[10px] text-gray-300 whitespace-nowrap shadow-lg">
+            {description}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// Mana Bar with special styling
+// Mana Status types
+type ManaStatus = 'full' | 'low' | 'depleted';
+
+function getManaStatus(percentage: number): { status: ManaStatus; label: string; description: string } {
+  if (percentage > 30) return { status: 'full', label: '', description: 'Maná disponible' };
+  if (percentage > 0) return { status: 'low', label: '⚡ Bajo', description: 'Completa tareas para recargar' };
+  return { status: 'depleted', label: '🔌 Vacío', description: 'Sin poderes especiales' };
+}
+
+// Mana Bar with special styling and status
 export function ManaBar({
   current,
   max,
   className,
+  showStatus = true,
 }: {
   current: number;
   max: number;
   className?: string;
+  showStatus?: boolean;
 }) {
+  const percentage = max > 0 ? (current / max) * 100 : 0;
+  const color = percentage > 30 ? 'primary' : percentage > 0 ? 'secondary' : 'error';
+  const { status, label, description } = getManaStatus(percentage);
+
   return (
-    <div className={cn('relative', className)}>
+    <div className={cn('relative group', className)}>
       <ProgressBar
         value={current}
         max={max}
-        color="primary"
+        color={color}
         size="lg"
         showLabel
         label="💎 MANÁ"
         glow
       />
+      {/* Status badge */}
+      {showStatus && status !== 'full' && (
+        <motion.div
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={cn(
+            'absolute -top-1 -right-1 px-1.5 py-0.5 rounded text-[10px] font-bold',
+            status === 'low' && 'bg-secondary/30 text-secondary border border-secondary/50',
+            status === 'depleted' && 'bg-gray-800/50 text-gray-400 border border-gray-600 animate-pulse'
+          )}
+        >
+          {label}
+        </motion.div>
+      )}
+      {/* Tooltip */}
+      {showStatus && status !== 'full' && (
+        <div className="absolute left-1/2 -translate-x-1/2 -bottom-8 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+          <div className="bg-surface-dark border border-white/10 rounded px-2 py-1 text-[10px] text-gray-300 whitespace-nowrap shadow-lg">
+            {description}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

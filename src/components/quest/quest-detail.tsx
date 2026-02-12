@@ -19,7 +19,7 @@ import {
   Banknote,
   CheckCircle2
 } from 'lucide-react';
-import { Button, Card, ProgressBar, Modal, Input } from '@/components/ui';
+import { Button, Card, ProgressBar, Modal, Input, MarkdownContent } from '@/components/ui';
 import { TaskList, type TaskUpdateData } from './task-item';
 import { cn } from '@/lib/utils';
 import type { QuestWithTasks } from '@/lib/types';
@@ -287,13 +287,21 @@ export function QuestDetail({
 
                       {/* Description */}
                       <div>
-                        <label className="text-xs text-gray-400 mb-1 block">Descripción</label>
+                        <label className="text-xs text-gray-400 mb-1 block">Descripción <span className="text-gray-500">(soporta Markdown)</span></label>
                         <textarea
                           value={editedDescription}
                           onChange={(e) => setEditedDescription(e.target.value)}
-                          placeholder="Descripción opcional..."
-                          rows={3}
-                          className="w-full rounded-lg border border-primary/30 bg-surface-dark px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                          placeholder="Descripción opcional...
+
+# Título
+## Subtítulo
+- Lista con viñetas
+1. Lista numerada
+**negrita** y *cursiva*
+`código`
+> cita"
+                          rows={5}
+                          className="w-full rounded-lg border border-primary/30 bg-surface-dark px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-none font-mono"
                         />
                       </div>
 
@@ -578,7 +586,7 @@ export function QuestDetail({
                   <h1 className="mb-2 text-2xl font-bold text-white">{quest.title}</h1>
                   
                   {quest.description && (
-                    <p className="text-gray-400">{quest.description}</p>
+                    <MarkdownContent content={quest.description} variant="compact" />
                   )}
                 </motion.div>
               )}

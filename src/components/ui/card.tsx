@@ -13,7 +13,7 @@ const cardVariants = cva(
         elevated: 'bg-gradient-to-br from-surface-light via-surface to-surface-dark border-primary/40 shadow-xl shadow-primary/10 hover:shadow-2xl hover:shadow-primary/20 hover:border-primary/60',
         glass: 'bg-surface/30 backdrop-blur-xl border-white/10 shadow-xl hover:bg-surface/40 hover:border-white/20',
         quest: 'bg-gradient-to-br from-surface via-surface-dark to-surface border-primary/40 hover:border-primary/70 hover:shadow-xl hover:shadow-primary/20 gaming-card',
-        boss: 'bg-gradient-to-br from-surface via-error/5 to-surface-dark border-error/50 hover:border-error/80 hover:shadow-xl hover:shadow-error/30 animate-pulse-subtle',
+        boss: 'bg-gradient-to-br from-surface via-error/5 to-surface-dark border-error/50 hover:border-error/80 hover:shadow-xl hover:shadow-error/20 animate-pulse-subtle',
       },
     },
     defaultVariants: {
@@ -24,7 +24,7 @@ const cardVariants = cva(
 
 export interface CardProps
   extends HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof cardVariants> {}
+  VariantProps<typeof cardVariants> { }
 
 const Card = forwardRef<HTMLDivElement, CardProps>(
   ({ className, variant, ...props }, ref) => (

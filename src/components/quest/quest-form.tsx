@@ -3,12 +3,13 @@
 import { useState } from 'react';
 import { Plus, X, Trash2, Skull, Banknote } from 'lucide-react';
 import { Button, Input, Textarea, Select, Modal } from '@/components/ui';
-import type { CreateQuestInput } from '@/lib/types';
+import type { CreateQuestInput, QuestWithTasks } from '@/lib/types';
 
 interface QuestFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (quest: CreateQuestInput) => Promise<void>;
+  initialData?: QuestWithTasks;
 }
 
 const questTypes = [
@@ -42,23 +43,27 @@ interface TaskInput {
   attributeBoost: string;
 }
 
-export function QuestForm({ isOpen, onClose, onSubmit }: QuestFormProps) {
+export function QuestForm({ isOpen, onClose, onSubmit, initialData }: QuestFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [type, setType] = useState('SIDE');
-  const [difficulty, setDifficulty] = useState('NORMAL');
-  const [isBossBattle, setIsBossBattle] = useState(false);
-  const [bossName, setBossName] = useState('');
+  const [title, setTitle] = useState(initialData?.title || '');
+  const [description, setDescription] = useState(initialData?.description || '');
+  const [type, setType] = useState(initialData?.type || 'SIDE');
+  const [difficulty, setDifficulty] = useState(initialData?.difficulty || 'NORMAL');
+  const [isBossBattle, setIsBossBattle] = useState(initialData?.isBossBattle || false);
+  const [bossName, setBossName] = useState(initialData?.bossName || '');
   // Billing states
-  const [billingType, setBillingType] = useState<'FIXED' | 'HOURLY'>('FIXED');
-  const [budgetAmount, setBudgetAmount] = useState('');
-  const [hourlyRate, setHourlyRate] = useState('');
-  const [estimatedHours, setEstimatedHours] = useState('');
-  const [hoursWorked, setHoursWorked] = useState('');
-  const [tasks, setTasks] = useState<TaskInput[]>([
-    { id: '1', title: '', attributeBoost: '' },
-  ]);
+  const [billingType, setBillingType] = useState<'FIXED' | 'HOURLY'>(initialData?.billingType || 'FIXED');
+  const [budgetAmount, setBudgetAmount] = useState(initialData?.budgetAmount?.toString() || '');
+  const [hourlyRate, setHourlyRate] = useState(initialData?.hourlyRate?.toString() || '');
+  const [estimatedHours, setEstimatedHours] = useState(initialData?.estimatedHours?.toString() || '');
+  const [hoursWorked, setHoursWorked] = useState(initialData?.hoursWorked?.toString() || '');
+  const [tasks, setTasks] = useState<TaskInput[]>(
+    initialData?.tasks.map(t => ({
+      id: t.id,
+      title: t.title,
+      attributeBoost: t.attributeBoost || ''
+    })) || [{ id: '1', title: '', attributeBoost: '' }]
+  );
 
   const addTask = () => {
     setTasks([
@@ -94,9 +99,9 @@ export function QuestForm({ isOpen, onClose, onSubmit }: QuestFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!title.trim()) return;
-    
+
     const validTasks = tasks.filter((t) => t.title.trim());
     if (validTasks.length === 0) return;
 
@@ -140,7 +145,7 @@ export function QuestForm({ isOpen, onClose, onSubmit }: QuestFormProps) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Nueva Misión"
+      title={initialData ? "Editar Misión" : "Nueva Misión"}
       size="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -155,11 +160,16 @@ export function QuestForm({ isOpen, onClose, onSubmit }: QuestFormProps) {
 
         {/* Description */}
         <Textarea
-          label="Descripción (opcional)"
+          label="Descripción (opcional, soporta Markdown)"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Describe los objetivos de esta misión..."
-          rows={2}
+          placeholder="Describe los objetivos de esta misión...
+
+# Título  ## Subtítulo
+- Lista con viñetas
+**negrita** *cursiva* `código`"
+          rows={3}
+          className="font-mono"
         />
 
         {/* Type and Difficulty */}
@@ -230,111 +240,109 @@ export function QuestForm({ isOpen, onClose, onSubmit }: QuestFormProps) {
 
         {/* Budget/Billing (for all quests) */}
         <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Banknote className="h-5 w-5 text-emerald-400" />
-              <span className="font-medium text-emerald-400">Facturación del Proyecto</span>
-            </div>
-            
-            {/* Billing Type Toggle */}
-            <div className="mb-4">
-              <label className="text-xs text-gray-400 mb-2 block">Tipo de cobro</label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setBillingType('FIXED')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                    billingType === 'FIXED'
-                      ? 'bg-emerald-500 text-white'
-                      : 'bg-surface-dark text-gray-400 hover:text-white border border-primary/20'
-                  }`}
-                >
-                  💰 Monto Fijo
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBillingType('HOURLY')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                    billingType === 'HOURLY'
-                      ? 'bg-emerald-500 text-white'
-                      : 'bg-surface-dark text-gray-400 hover:text-white border border-primary/20'
-                  }`}
-                >
-                  ⏱️ Por Hora
-                </button>
-              </div>
-            </div>
+          <div className="flex items-center gap-2 mb-3">
+            <Banknote className="h-5 w-5 text-emerald-400" />
+            <span className="font-medium text-emerald-400">Facturación del Proyecto</span>
+          </div>
 
-            {billingType === 'FIXED' ? (
+          {/* Billing Type Toggle */}
+          <div className="mb-4">
+            <label className="text-xs text-gray-400 mb-2 block">Tipo de cobro</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setBillingType('FIXED')}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${billingType === 'FIXED'
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-surface-dark text-gray-400 hover:text-white border border-primary/20'
+                  }`}
+              >
+                💰 Monto Fijo
+              </button>
+              <button
+                type="button"
+                onClick={() => setBillingType('HOURLY')}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${billingType === 'HOURLY'
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-surface-dark text-gray-400 hover:text-white border border-primary/20'
+                  }`}
+              >
+                ⏱️ Por Hora
+              </button>
+            </div>
+          </div>
+
+          {billingType === 'FIXED' ? (
+            <Input
+              label="Monto a cobrar (USD) - Opcional"
+              type="number"
+              value={budgetAmount}
+              onChange={(e) => setBudgetAmount(e.target.value)}
+              placeholder="0.00"
+              min="0"
+              step="0.01"
+            />
+          ) : (
+            <div className="space-y-3">
               <Input
-                label="Monto a cobrar (USD) - Opcional"
+                label="Tarifa por hora (USD)"
                 type="number"
-                value={budgetAmount}
-                onChange={(e) => setBudgetAmount(e.target.value)}
+                value={hourlyRate}
+                onChange={(e) => setHourlyRate(e.target.value)}
                 placeholder="0.00"
                 min="0"
-                step="100"
+                step="0.01"
               />
-            ) : (
-              <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 <Input
-                  label="Tarifa por hora (USD)"
+                  label="📋 Horas estimadas"
                   type="number"
-                  value={hourlyRate}
-                  onChange={(e) => setHourlyRate(e.target.value)}
-                  placeholder="0.00"
+                  value={estimatedHours}
+                  onChange={(e) => setEstimatedHours(e.target.value)}
+                  placeholder="0"
                   min="0"
-                  step="10"
+                  step="0.5"
                 />
-                <div className="grid grid-cols-2 gap-3">
-                  <Input
-                    label="📋 Horas estimadas"
-                    type="number"
-                    value={estimatedHours}
-                    onChange={(e) => setEstimatedHours(e.target.value)}
-                    placeholder="0"
-                    min="0"
-                    step="0.5"
-                  />
-                  <Input
-                    label="✅ Horas trabajadas"
-                    type="number"
-                    value={hoursWorked}
-                    onChange={(e) => setHoursWorked(e.target.value)}
-                    placeholder="0"
-                    min="0"
-                    step="0.5"
-                  />
-                </div>
-                {hourlyRate && (estimatedHours || hoursWorked) && (
-                  <div className="bg-emerald-500/20 rounded-lg p-3">
-                    <div className="grid grid-cols-2 gap-4 text-center">
-                      {estimatedHours && (
-                        <div>
-                          <span className="text-xs text-gray-400">Presupuesto estimado</span>
-                          <div className="text-lg font-bold text-emerald-400/70">
-                            ${(parseFloat(hourlyRate) * parseFloat(estimatedHours)).toFixed(2)}
-                          </div>
-                        </div>
-                      )}
-                      {hoursWorked && (
-                        <div>
-                          <span className="text-xs text-gray-400">Total real</span>
-                          <div className="text-lg font-bold text-emerald-400">
-                            ${(parseFloat(hourlyRate) * parseFloat(hoursWorked)).toFixed(2)}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                <Input
+                  label="✅ Horas trabajadas"
+                  type="number"
+                  value={hoursWorked}
+                  onChange={(e) => setHoursWorked(e.target.value)}
+                  placeholder="0"
+                  min="0"
+                  step="0.5"
+                />
               </div>
-            )}
-            <p className="mt-2 text-xs text-gray-400">
-              {billingType === 'FIXED' 
-                ? 'Registra el monto del proyecto para llevar control de cobros'
-                : 'Puedes actualizar las horas trabajadas más adelante'}
-            </p>
-          </div>
+              {hourlyRate && (estimatedHours || hoursWorked) && (
+                <div className="bg-emerald-500/20 rounded-lg p-3">
+                  <div className="grid grid-cols-2 gap-4 text-center">
+                    {estimatedHours && (
+                      <div>
+                        <span className="text-xs text-gray-400">Presupuesto estimado</span>
+                        <div className="text-lg font-bold text-emerald-400/70">
+                          ${(parseFloat(hourlyRate) * parseFloat(estimatedHours)).toFixed(2)}
+                        </div>
+                      </div>
+                    )}
+                    {hoursWorked && (
+                      <div>
+                        <span className="text-xs text-gray-400">Total real</span>
+                        <div className="text-lg font-bold text-emerald-400">
+                          ${(parseFloat(hourlyRate) * parseFloat(hoursWorked)).toFixed(2)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <p className="mt-2 text-xs text-gray-400">
+            {billingType === 'FIXED'
+              ? 'Registra el monto del proyecto para llevar control de cobros'
+              : 'Puedes actualizar las horas trabajadas más adelante'}
+          </p>
+        </div>
 
         {/* Tasks */}
         <div>
@@ -399,7 +407,7 @@ export function QuestForm({ isOpen, onClose, onSubmit }: QuestFormProps) {
             isLoading={isSubmitting}
             className="flex-1"
           >
-            Crear Misión
+            {initialData ? 'Guardar Cambios' : 'Crear Misión'}
           </Button>
         </div>
       </form>

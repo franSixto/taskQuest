@@ -4,3 +4,4 @@ export { Modal } from './modal';
 export { ProgressBar, HPBar, ManaBar, XPBar } from './progress-bar';
 export { Input, Textarea, Select } from './input';
 export { Toast, ToastContainer, useToast } from './toast';
+export { MarkdownContent } from './markdown-content';

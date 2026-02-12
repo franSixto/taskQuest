@@ -1,10 +1,34 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { Sword, Shield, Star, Flame, Coins, Gem, User, Crown, Sparkles } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Sword, Shield, Star, Flame, Coins, Gem, User, Crown, Sparkles, AlertTriangle, Zap, Heart, Battery } from 'lucide-react';
 import { Card, CardContent, HPBar, ManaBar, XPBar } from '@/components/ui';
 import { xpForNextLevel, levelProgress } from '@/lib/xp-calculator';
 import { cn } from '@/lib/utils';
+
+// Status helper functions
+function getVitalStatus(hp: number, maxHp: number, mana: number, maxMana: number) {
+  const hpPercent = maxHp > 0 ? (hp / maxHp) * 100 : 0;
+  const manaPercent = maxMana > 0 ? (mana / maxMana) * 100 : 0;
+  
+  const warnings: Array<{ type: 'hp' | 'mana'; severity: 'warning' | 'critical'; message: string }> = [];
+  
+  if (hpPercent <= 0) {
+    warnings.push({ type: 'hp', severity: 'critical', message: '¡K.O.! Necesitas descansar' });
+  } else if (hpPercent <= 25) {
+    warnings.push({ type: 'hp', severity: 'critical', message: '¡Agotado! -25% XP' });
+  } else if (hpPercent <= 50) {
+    warnings.push({ type: 'hp', severity: 'warning', message: 'Cansado - Completa tareas' });
+  }
+  
+  if (manaPercent <= 0) {
+    warnings.push({ type: 'mana', severity: 'critical', message: 'Sin maná - Sin poderes' });
+  } else if (manaPercent <= 30) {
+    warnings.push({ type: 'mana', severity: 'warning', message: 'Maná bajo' });
+  }
+  
+  return warnings;
+}
 
 interface CharacterCardProps {
   name: string;
@@ -20,6 +44,7 @@ interface CharacterCardProps {
   currentStreak: number;
   avatarUrl?: string;
   className?: string;
+  overdueTasks?: number; // Number of overdue tasks
 }
 
 export function CharacterCard({
@@ -36,9 +61,13 @@ export function CharacterCard({
   currentStreak,
   avatarUrl,
   className,
+  overdueTasks = 0,
 }: CharacterCardProps) {
   const xpForNext = xpForNextLevel(level);
   const progress = levelProgress(currentXP, level);
+  const warnings = getVitalStatus(hp, maxHp, mana, maxMana);
+  const hasCriticalWarning = warnings.some(w => w.severity === 'critical');
+  const hpPercent = maxHp > 0 ? (hp / maxHp) * 100 : 0;
 
   return (
     <Card variant="elevated" className={cn('overflow-hidden relative', className)}>
@@ -119,6 +148,69 @@ export function CharacterCard({
           <HPBar current={hp} max={maxHp} />
           <ManaBar current={mana} max={maxMana} />
         </div>
+
+        {/* Vital Status Warnings */}
+        <AnimatePresence>
+          {warnings.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="space-y-2"
+            >
+              {warnings.map((warning, idx) => (
+                <motion.div
+                  key={`${warning.type}-${idx}`}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium',
+                    warning.severity === 'critical'
+                      ? 'bg-error/20 border border-error/30 text-error'
+                      : 'bg-warning/20 border border-warning/30 text-warning'
+                  )}
+                >
+                  {warning.type === 'hp' ? (
+                    <Heart className={cn('h-4 w-4', warning.severity === 'critical' && 'animate-pulse')} />
+                  ) : (
+                    <Battery className={cn('h-4 w-4', warning.severity === 'critical' && 'animate-pulse')} />
+                  )}
+                  <span>{warning.message}</span>
+                  {warning.severity === 'critical' && (
+                    <AlertTriangle className="h-3 w-3 ml-auto animate-pulse" />
+                  )}
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Overdue Tasks Warning */}
+        <AnimatePresence>
+          {overdueTasks > 0 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-medium"
+            >
+              <AlertTriangle className="h-4 w-4 animate-bounce" />
+              <span>¡{overdueTasks} tarea{overdueTasks > 1 ? 's' : ''} vencida{overdueTasks > 1 ? 's' : ''}! (-{overdueTasks * 5} HP/día)</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* XP Penalty indicator */}
+        {hpPercent <= 25 && hpPercent > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center text-xs text-error/80 font-medium"
+          >
+            ⚠️ Penalización activa: -25% XP en todas las recompensas
+          </motion.div>
+        )}
 
         {/* Currency */}
         <div className="flex items-center justify-center gap-8 pt-3 border-t border-white/5">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
@@ -35,8 +35,43 @@ export default function HomePage() {
   const [showRewards, setShowRewards] = useState(false);
   const [questFilter, setQuestFilter] = useState<QuestFilter>('ALL');
   const [levelUp, setLevelUp] = useState<{ level: number; title?: string } | null>(null);
+  const warningsShownRef = useRef(false);
+  const initialLoadRef = useRef(false);
   
   const toast = useToast();
+
+  // Calculate overdue tasks (tasks in quests past deadline)
+  const overdueTasks = quests.reduce((count, quest) => {
+    if (quest.deadline && new Date(quest.deadline) < new Date() && quest.status === 'ACTIVE') {
+      // Count incomplete tasks in overdue quests
+      return count + quest.tasks.filter(t => !t.completed).length;
+    }
+    return count;
+  }, 0);
+
+  // Check for low HP/Mana warnings on character load (only once)
+  useEffect(() => {
+    if (character && !warningsShownRef.current && !loading) {
+      warningsShownRef.current = true;
+      const hpPercent = character.maxHp > 0 ? (character.hp / character.maxHp) * 100 : 0;
+      const manaPercent = character.maxMana > 0 ? (character.mana / character.maxMana) * 100 : 0;
+      
+      if (hpPercent <= 25 && hpPercent > 0) {
+        toast.warning('⚠️ ¡Estás agotado! (-25% XP). Completa tareas para recuperarte.');
+      } else if (hpPercent <= 0) {
+        toast.error('💀 ¡K.O.! Necesitas descansar o usar pociones.');
+      }
+      
+      if (manaPercent <= 0) {
+        toast.warning('🔌 Sin maná. No puedes usar poderes especiales.');
+      }
+      
+      if (overdueTasks > 0) {
+        toast.warning(`⏰ ¡${overdueTasks} tarea${overdueTasks > 1 ? 's' : ''} vencida${overdueTasks > 1 ? 's' : ''}!`);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [character, loading]);
 
   // Fetch character and quests
   const fetchData = useCallback(async () => {
@@ -57,14 +92,16 @@ export default function HomePage() {
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('Error al cargar los datos');
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchData();
+    if (!initialLoadRef.current) {
+      initialLoadRef.current = true;
+      fetchData();
+    }
   }, [fetchData]);
 
   // Create quest
@@ -131,7 +168,14 @@ export default function HomePage() {
 
         // Show rewards if task was completed
         if (data.rewards) {
-          toast.success(`+${data.rewards.xp} XP, +${data.rewards.gold} oro`);
+          let rewardMsg = `+${data.rewards.xp} XP, +${data.rewards.gold} oro`;
+          if (data.rewards.hpRegen > 0 || data.rewards.manaRegen > 0) {
+            const regenParts = [];
+            if (data.rewards.hpRegen > 0) regenParts.push(`+${data.rewards.hpRegen} ❤️`);
+            if (data.rewards.manaRegen > 0) regenParts.push(`+${data.rewards.manaRegen} 💎`);
+            rewardMsg += ` | ${regenParts.join(', ')}`;
+          }
+          toast.success(rewardMsg);
         }
 
         // Handle level up
@@ -188,16 +232,35 @@ export default function HomePage() {
     bossMaxHp?: number;
   }) => {
     try {
+      // Get current quest to check if boss battle is being newly enabled
+      const currentQuest = quests.find(q => q.id === questId) || selectedQuest;
+      const wasAlreadyBossBattle = currentQuest?.isBossBattle;
+      
+      // Build update payload - only set bossHp if ACTIVATING boss battle for the first time
+      const updatePayload: Record<string, unknown> = {
+        ...data,
+        deadline: data.deadline ? new Date(data.deadline) : null,
+      };
+      
+      // Only update boss fields if isBossBattle is being changed or set
+      if (data.isBossBattle !== undefined) {
+        if (data.isBossBattle) {
+          updatePayload.bossMaxHp = data.bossMaxHp || 100;
+          // Only reset bossHp if this is a NEW boss battle activation
+          if (!wasAlreadyBossBattle) {
+            updatePayload.bossHp = data.bossMaxHp || 100;
+          }
+        } else {
+          // Disabling boss battle - reset both to 0
+          updatePayload.bossHp = 0;
+          updatePayload.bossMaxHp = 0;
+        }
+      }
+
       const res = await fetch(`/api/quests/${questId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...data,
-          deadline: data.deadline ? new Date(data.deadline) : null,
-          // Si se activa batalla de jefe, establecer HP inicial
-          bossHp: data.isBossBattle ? (data.bossMaxHp || 100) : 0,
-          bossMaxHp: data.isBossBattle ? (data.bossMaxHp || 100) : 0,
-        }),
+        body: JSON.stringify(updatePayload),
       });
 
       if (res.ok) {
@@ -448,6 +511,7 @@ export default function HomePage() {
                     gems={character.gems}
                     currentStreak={character.currentStreak}
                     avatarUrl={character.avatarUrl || undefined}
+                    overdueTasks={overdueTasks}
                   />
                 </motion.div>
 

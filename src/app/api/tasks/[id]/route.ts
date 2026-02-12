@@ -202,6 +202,12 @@ export async function PATCH(
     const newCurrentXP = Math.max(0, character.currentXP + xpChange);
     const newGold = Math.max(0, character.gold + goldChange);
     const newLevel = levelFromXP(newTotalXP);
+    
+    // HP/Mana regeneration on task completion
+    const hpRegen = newCompleted ? 5 : 0; // +5 HP per task completed
+    const manaRegen = newCompleted ? 3 : 0; // +3 Mana per task completed
+    const newHp = Math.min(character.maxHp, character.hp + hpRegen);
+    const newMana = Math.min(character.maxMana, character.mana + manaRegen);
 
     let levelUp = null;
     if (newLevel > character.level) {
@@ -221,6 +227,8 @@ export async function PATCH(
         gold: newGold,
         level: newLevel,
         title: newLevel > character.level ? getTitleForLevel(newLevel) : undefined,
+        hp: newHp,
+        mana: newMana,
       },
     });
 
@@ -264,6 +272,15 @@ export async function PATCH(
 
     // Update quest status if all tasks completed
     if (allCompleted && newCompleted) {
+      // Quest completion bonus: +15 HP, +10 Mana
+      await prisma.character.update({
+        where: { id: character.id },
+        data: {
+          hp: Math.min(character.maxHp, newHp + 15),
+          mana: Math.min(character.maxMana, newMana + 10),
+        },
+      });
+      
       await prisma.quest.update({
         where: { id: quest.id },
         data: {
@@ -287,7 +304,12 @@ export async function PATCH(
       success: true,
       data: {
         task: updatedTask,
-        rewards: newCompleted ? { xp: task.xpReward, gold: task.goldReward } : null,
+        rewards: newCompleted ? { 
+          xp: task.xpReward, 
+          gold: task.goldReward,
+          hpRegen: hpRegen + (allCompleted ? 15 : 0),
+          manaRegen: manaRegen + (allCompleted ? 10 : 0),
+        } : null,
         levelUp,
         questCompleted: allCompleted && newCompleted,
       },

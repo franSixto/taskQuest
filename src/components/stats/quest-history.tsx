@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   X,
@@ -17,10 +17,13 @@ import {
   Target,
   Search,
   ChevronDown,
+  RotateCcw,
+  Pencil,
 } from 'lucide-react';
-import { Card, Button, Input } from '@/components/ui';
+import { Card, Button, Input, useToast } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import type { QuestWithTasks } from '@/lib/types';
+import type { QuestWithTasks, CreateQuestInput } from '@/lib/types';
+import { QuestForm } from '@/components/quest/quest-form';
 
 interface QuestHistoryProps {
   isOpen: boolean;
@@ -35,16 +38,13 @@ export function QuestHistory({ isOpen, onClose, onSelectQuest }: QuestHistoryPro
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
+  const { success, error } = useToast();
 
-  useEffect(() => {
-    if (isOpen) {
-      setQuests([]);
-      setOffset(0);
-      fetchHistory(0, true);
-    }
-  }, [isOpen]);
+  // Edit state
+  const [editingQuest, setEditingQuest] = useState<QuestWithTasks | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  const fetchHistory = async (currentOffset: number, reset: boolean = false) => {
+  const fetchHistory = useCallback(async (currentOffset: number, reset: boolean = false) => {
     if (reset) {
       setLoading(true);
     } else {
@@ -63,13 +63,26 @@ export function QuestHistory({ isOpen, onClose, onSelectQuest }: QuestHistoryPro
         setHasMore(pagination.hasMore);
         setOffset(currentOffset + data.length);
       }
-    } catch (error) {
-      console.error('Error fetching history:', error);
+    } catch (err) {
+      console.error('Error fetching history:', err);
+      try {
+        error('Error al cargar el historial');
+      } catch (e) {
+        console.error('Toast error:', e);
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
     }
-  };
+  }, [error]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setQuests([]);
+      setOffset(0);
+      fetchHistory(0, true);
+    }
+  }, [isOpen, fetchHistory]);
 
   const loadMore = () => {
     if (!loadingMore && hasMore) {
@@ -77,9 +90,70 @@ export function QuestHistory({ isOpen, onClose, onSelectQuest }: QuestHistoryPro
     }
   };
 
+  const handleRecover = async (e: React.MouseEvent, quest: QuestWithTasks) => {
+    e.stopPropagation();
+
+    try {
+      const res = await fetch(`/api/quests/${quest.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'ACTIVE',
+          completedAt: null,
+          isPaid: false,
+        }),
+      });
+
+      if (res.ok) {
+        success('Misión recuperada a activas');
+        setQuests(prev => prev.filter(q => q.id !== quest.id));
+      } else {
+        throw new Error('Failed to recover quest');
+      }
+    } catch (err) {
+      console.error('Error recovering quest:', err);
+      try {
+        error('No se pudo recuperar la misión');
+      } catch (e) { console.error(e); }
+    }
+  };
+
+  const handleEdit = (e: React.MouseEvent, quest: QuestWithTasks) => {
+    e.stopPropagation();
+    setEditingQuest(quest);
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateQuest = async (questData: CreateQuestInput) => {
+    if (!editingQuest) return;
+
+    try {
+      const res = await fetch(`/api/quests/${editingQuest.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(questData),
+      });
+
+      if (res.ok) {
+        const { data: updatedQuest } = await res.json();
+        setQuests(prev => prev.map(q => q.id === updatedQuest.id ? updatedQuest : q));
+        success('Misión actualizada correctamente');
+        setIsEditModalOpen(false);
+        setEditingQuest(null);
+      } else {
+        throw new Error('Failed to update quest');
+      }
+    } catch (err) {
+      console.error('Error updating quest:', err);
+      try {
+        error('No se pudo actualizar la misión');
+      } catch (e) { console.error(e); }
+    }
+  };
+
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { 
-      style: 'currency', 
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
@@ -109,12 +183,11 @@ export function QuestHistory({ isOpen, onClose, onSelectQuest }: QuestHistoryPro
     (quest.description?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // Group quests by month
   const groupedQuests = filteredQuests.reduce((groups, quest) => {
     const date = quest.completedAt ? new Date(quest.completedAt) : new Date(quest.updatedAt);
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     const monthLabel = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-    
+
     if (!groups[monthKey]) {
       groups[monthKey] = { label: monthLabel, quests: [] };
     }
@@ -122,14 +195,13 @@ export function QuestHistory({ isOpen, onClose, onSelectQuest }: QuestHistoryPro
     return groups;
   }, {} as Record<string, { label: string; quests: QuestWithTasks[] }>);
 
-  // Calculate totals for each month
   const monthTotals = Object.entries(groupedQuests).map(([key, { label, quests }]) => {
     const totalBilled = quests.reduce((sum, q) => sum + getQuestBillingAmount(q), 0);
     const totalPaid = quests
       .filter(q => q.isPaid)
       .reduce((sum, q) => sum + getQuestBillingAmount(q), 0);
     const totalHours = quests.reduce((sum, q) => sum + (q.hoursWorked || 0), 0);
-    
+
     return { key, label, quests, totalBilled, totalPaid, totalHours };
   });
 
@@ -231,7 +303,7 @@ export function QuestHistory({ isOpen, onClose, onSelectQuest }: QuestHistoryPro
                       >
                         <Card
                           className={cn(
-                            "p-4 cursor-pointer hover:border-primary/40 transition-all",
+                            "p-4 cursor-pointer hover:border-primary/40 transition-all group",
                             quest.isBossBattle && "border-error/30 hover:border-error/50"
                           )}
                           onClick={() => onSelectQuest?.(quest)}
@@ -240,7 +312,7 @@ export function QuestHistory({ isOpen, onClose, onSelectQuest }: QuestHistoryPro
                             {/* Icon */}
                             <div className={cn(
                               "flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0",
-                              quest.isBossBattle 
+                              quest.isBossBattle
                                 ? "bg-error/20 border border-error/40"
                                 : "bg-success/20 border border-success/40"
                             )}>
@@ -274,6 +346,30 @@ export function QuestHistory({ isOpen, onClose, onSelectQuest }: QuestHistoryPro
                                 </div>
                               </div>
 
+                              {/* Actions */}
+                              <div className="mt-2 flex items-center justify-end gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 p-2 text-gray-400 hover:text-white hover:bg-surface-dark"
+                                  onClick={(e) => handleEdit(e, quest)}
+                                  title="Editar"
+                                >
+                                  <Pencil className="h-4 w-4 mr-1" />
+                                  <span className="text-xs">Editar</span>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 p-2 text-gray-400 hover:text-emerald-400 hover:bg-surface-dark"
+                                  onClick={(e) => handleRecover(e, quest)}
+                                  title="Recuperar a activas"
+                                >
+                                  <RotateCcw className="h-4 w-4 mr-1" />
+                                  <span className="text-xs">Recuperar</span>
+                                </Button>
+                              </div>
+
                               {/* Stats Row */}
                               <div className="flex items-center gap-4 mt-2 text-xs">
                                 <span className="text-gray-400">
@@ -294,7 +390,7 @@ export function QuestHistory({ isOpen, onClose, onSelectQuest }: QuestHistoryPro
                               {getQuestBillingAmount(quest) > 0 && (
                                 <div className={cn(
                                   "mt-2 inline-flex items-center gap-2 px-2 py-1 rounded-lg text-xs",
-                                  quest.isPaid 
+                                  quest.isPaid
                                     ? "bg-success/20 text-success"
                                     : "bg-warning/20 text-warning"
                                 )}>
@@ -338,6 +434,19 @@ export function QuestHistory({ isOpen, onClose, onSelectQuest }: QuestHistoryPro
           )}
         </div>
       </div>
+
+      {/* Edit Modal */}
+      {isEditModalOpen && editingQuest && (
+        <QuestForm
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingQuest(null);
+          }}
+          onSubmit={handleUpdateQuest}
+          initialData={editingQuest}
+        />
+      )}
     </motion.div>
   );
 }
