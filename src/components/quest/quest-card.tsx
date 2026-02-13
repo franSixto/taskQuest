@@ -183,7 +183,12 @@ export function QuestCard({ quest, onClick, className }: QuestCardProps) {
           </div>
 
           {/* Boss HP (always reserve space for consistent height) */}
-          <div className={cn("mb-4 transition-opacity", quest.isBossBattle && quest.bossHp !== null && quest.bossMaxHp !== null ? "opacity-100" : "opacity-0 h-0 mb-0 overflow-hidden")}>
+          <div className={cn(
+            "mb-4 min-h-[54px] transition-opacity duration-300",
+            quest.isBossBattle && quest.bossHp !== null && quest.bossMaxHp !== null 
+              ? "opacity-100" 
+              : "opacity-0 pointer-events-none"
+          )}>
             {quest.isBossBattle && quest.bossHp !== null && quest.bossMaxHp !== null && (
               <>
                 <div className="mb-1.5 flex justify-between text-xs">
@@ -210,38 +215,45 @@ export function QuestCard({ quest, onClick, className }: QuestCardProps) {
           <div className="flex-grow" />
 
           {/* Billing indicator for MAIN quests */}
-          {hasBilling && (
-            <div className={cn(
-              "mb-3 flex items-center justify-between rounded-lg px-3 py-2 text-sm",
-              quest.isPaid
-                ? "bg-success/10 border border-success/30"
-                : "bg-emerald-500/10 border border-emerald-500/30"
-            )}>
-              <span className="flex items-center gap-2">
-                <Banknote className={cn("h-4 w-4", quest.isPaid ? "text-success" : "text-emerald-400")} />
-                <span className="flex flex-col">
-                  <span className={cn("font-semibold", quest.isPaid ? "text-success" : "text-emerald-400")}>
-                    {formatCurrency(billingAmount)}
-                  </span>
-                  {isHourlyBilling && (
-                    <span className="text-[10px] text-gray-400">
-                      ${quest.hourlyRate}/hr × {quest.hoursWorked || 0}h{quest.estimatedHours ? ` (est: ${quest.estimatedHours}h)` : ''}
+          <div className={cn(
+            "mb-3 min-h-[68px] transition-opacity duration-300 flex items-center",
+            hasBilling 
+              ? "opacity-100" 
+              : "opacity-0 pointer-events-none"
+          )}>
+            {hasBilling && (
+              <div className={cn(
+                "w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm",
+                quest.isPaid
+                  ? "bg-success/10 border border-success/30"
+                  : "bg-emerald-500/10 border border-emerald-500/30"
+              )}>
+                <span className="flex items-center gap-2">
+                  <Banknote className={cn("h-4 w-4", quest.isPaid ? "text-success" : "text-emerald-400")} />
+                  <span className="flex flex-col">
+                    <span className={cn("font-semibold", quest.isPaid ? "text-success" : "text-emerald-400")}>
+                      {formatCurrency(billingAmount)}
                     </span>
-                  )}
+                    {isHourlyBilling && (
+                      <span className="text-[10px] text-gray-400">
+                        ${quest.hourlyRate}/hr × {quest.hoursWorked || 0}h{quest.estimatedHours ? ` (est: ${quest.estimatedHours}h)` : ''}
+                      </span>
+                    )}
+                  </span>
                 </span>
-              </span>
-              {quest.isPaid ? (
-                <span className="flex items-center gap-1 text-xs text-success">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Cobrado
-                </span>
-              ) : (
-                <span className="text-xs text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full">
-                  Pendiente
-                </span>
-              )}
-            </div>
-          )}
+                {quest.isPaid ? (
+                  <span className="flex items-center gap-1 text-xs text-success">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Cobrado
+                  </span>
+                ) : (
+                  <span className="text-xs text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full">
+                    Pendiente
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Rewards and deadline */}
           <div className="flex items-center justify-between pt-2 border-t border-white/5">

@@ -18,7 +18,7 @@ import {
 import { Button, Card, ToastContainer, useToast } from '@/components/ui';
 import { CharacterCard, AttributesGrid, LevelUpPopup } from '@/components/character';
 import { QuestCard, QuestDetail, QuestForm } from '@/components/quest';
-import { StatsDashboard, QuestHistory } from '@/components/stats';
+import { StatsDashboard, QuestHistory, BossesPanel } from '@/components/stats';
 import { RewardShop } from '@/components/rewards';
 import type { CharacterWithRelations, QuestWithTasks, CreateQuestInput } from '@/lib/types';
 
@@ -33,6 +33,7 @@ export default function HomePage() {
   const [showStats, setShowStats] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showRewards, setShowRewards] = useState(false);
+  const [showBosses, setShowBosses] = useState(false);
   const [questFilter, setQuestFilter] = useState<QuestFilter>('ALL');
   const [levelUp, setLevelUp] = useState<{ level: number; title?: string } | null>(null);
   const warningsShownRef = useRef(false);
@@ -463,6 +464,17 @@ export default function HomePage() {
                 variant="ghost" 
                 size="icon" 
                 className="relative"
+                onClick={() => setShowBosses(true)}
+                title="Jefes"
+              >
+                <Trophy className="h-5 w-5" />
+              </Button>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="relative"
                 onClick={() => setShowStats(true)}
                 title="Estadísticas"
               >
@@ -679,6 +691,15 @@ export default function HomePage() {
         onSelectQuest={(quest) => {
           setShowHistory(false);
           setSelectedQuest(quest);
+        }}
+      />
+
+      {/* Bosses panel modal */}
+      <BossesPanel
+        isOpen={showBosses}
+        onClose={() => setShowBosses(false)}
+        onCreateBoss={() => {
+          console.log('Create boss - Will open boss creation form');
         }}
       />
 

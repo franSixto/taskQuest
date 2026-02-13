@@ -44,6 +44,7 @@ model Character {
   // Relations
   attributes    Attribute[]
   quests        Quest[]
+  bosses        Boss[]
   achievements  CharacterAchievement[]
   inventory     InventoryItem[]
   dailyProgress DailyProgress[]
@@ -100,7 +101,9 @@ model Quest {
   
   // Boss Battle (for MAIN quests)
   isBossBattle  Boolean   @default(false)
-  bossName      String?
+  bossId        String?
+  boss          Boss?     @relation(fields: [bossId], references: [id], onDelete: SetNull)
+  bossName      String?   // Kept for backward compatibility
   bossHp        Int?
   bossMaxHp     Int?
   bossImageUrl  String?
@@ -115,11 +118,63 @@ model Quest {
   
   // Relations
   tasks       Task[]
+  bossAttempts BossAttempt[]
   
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   
   @@map("quests")
+}
+
+// ============================================
+// BOSS SYSTEM
+// ============================================
+
+model Boss {
+  id          String    @id @default(cuid())
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  
+  name        String    // Boss name
+  description String?   // Boss description
+  difficulty  String    @default("NORMAL") // TRIVIAL, EASY, NORMAL, HARD, EPIC, LEGENDARY
+  
+  // Stats
+  maxHp       Int       @default(100)
+  imageUrl    String?
+  
+  // Tracking
+  totalAttempts     Int       @default(0)
+  totalDefeats      Int       @default(0)
+  bestTime          Int?      // Best time in seconds
+  lastAttemptedAt   DateTime?
+  firstDefeatedAt   DateTime?
+  
+  // Relations
+  quests      Quest[]
+  attempts    BossAttempt[]
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@unique([characterId, name])
+  @@map("bosses")
+}
+
+model BossAttempt {
+  id        String   @id @default(cuid())
+  bossId    String
+  boss      Boss     @relation(fields: [bossId], references: [id], onDelete: Cascade)
+  questId   String?  // Reference to the quest where this boss was fought
+  quest     Quest?   @relation(fields: [questId], references: [id], onDelete: SetNull)
+  
+  defeated  Boolean
+  timeSpent Int?     // Time in seconds
+  damageDealt Int?   // Total damage dealt
+  
+  createdAt DateTime @default(now())
+  
+  @@map("boss_attempts")
 }
 
 model Task {
